@@ -8,10 +8,16 @@ env:
   ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
   AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
   AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+  ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
 
 jobs:
   build-and-deploy:
     runs-on: self-hosted
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: app
 
     steps:
       - name: Checkout code
@@ -22,38 +28,32 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          working-directory: app
+          cache-dependency-path: app/package-lock.json
 
       - name: Install dependencies
-        working-directory: app
-        run: npm install
+        run: npm ci
 
       - name: Run tests
-        working-directory: app
         run: npm test
 
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Log in to ACR
+      - name: Ensure ACR login (uses env secrets)
         run: |
-          echo "${{ secrets.ACR_PASSWORD }}" | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
+          echo $env:ACR_PASSWORD | docker login $env:ACR_LOGIN_SERVER -u $env:ACR_USERNAME --password-stdin
 
       - name: Build and push Docker image
         run: |
-          IMAGE_TAG=${{ github.sha }}
-          docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/fyp-app:latest ./app
-          docker tag ${{ secrets.ACR_LOGIN_SERVER }}/fyp-app:latest ${{ secrets.ACR_LOGIN_SERVER }}/fyp-app:${IMAGE_TAG}
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/fyp-app:latest
-          docker push ${{ secrets.ACR_LOGIN_SERVER }}/fyp-app:${IMAGE_TAG}
+          $IMAGE_TAG = "${{ github.sha }}"
+          docker build -t "$env:ACR_LOGIN_SERVER/fyp-app:latest" .
+          docker tag "$env:ACR_LOGIN_SERVER/fyp-app:latest" "$env:ACR_LOGIN_SERVER/fyp-app:$IMAGE_TAG"
+          docker push "$env:ACR_LOGIN_SERVER/fyp-app:latest"
+          docker push "$env:ACR_LOGIN_SERVER/fyp-app:$IMAGE_TAG"
 
       - name: Set AKS context
         run: |
-          az aks get-credentials --resource-group $AZURE_RESOURCE_GROUP --name $AKS_CLUSTER_NAME --overwrite-existing
+          az aks get-credentials --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AKS_CLUSTER_NAME --overwrite-existing
 
       - name: Deploy to AKS
         run: |
-          kubectl apply -f k8s/
+          kubectl apply -f ../k8s/
           kubectl rollout status deployment/fyp-app-deployment
+
