@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: fyp-app
-          image: fypcicdregistry.azurecr.io/fyp-app:latest
+          image: fypcicdregistrymarkl.azurecr.io/fyp-app:latest
           ports:
             - containerPort: 8080
           readinessProbe:
