@@ -16,4 +16,5 @@ kubectl apply -f service.yaml
 kubectl get pods
 kubectl get svc
 -- new window
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 .\run.cmd
