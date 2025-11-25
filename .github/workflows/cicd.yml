@@ -36,9 +36,9 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Ensure ACR login (uses env secrets)
-        run: |
-          echo $env:ACR_PASSWORD | docker login $env:ACR_LOGIN_SERVER -u $env:ACR_USERNAME --password-stdin
+      - name: Ensure ACR login (via az)
+        run: az acr login --name fypcicdregistrymarkl
+
 
       - name: Build and push Docker image
         run: |
