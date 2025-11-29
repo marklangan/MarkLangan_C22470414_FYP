@@ -23,3 +23,5 @@ override.tf.json
 # CLI configuration files
 .terraformrc
 terraform.rc
+
+images_show_success/

@@ -9,7 +9,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Only start the server if this file is run directly (node index.js)
+
 if (require.main === module) {
   app.listen(port, () => {
     console.log(`FYP app listening on port ${port}`);
@@ -17,6 +17,10 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+
+
+
 
 
 
