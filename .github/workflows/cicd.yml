@@ -54,6 +54,13 @@ jobs:
 
       - name: Deploy to AKS
         run: |
+
           kubectl apply -f ../k8s/
+
+
+          kubectl rollout restart deployment fyp-app-deployment
+
+
           kubectl rollout status deployment/fyp-app-deployment
+
 

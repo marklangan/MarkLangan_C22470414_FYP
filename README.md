@@ -26,7 +26,7 @@ kubectl get nodes
 kubectl get deployments
 kubectl get pods
 kubectl get svc
-check http://4.251.137.32/health
+check http://172.189.116.114/health
 --check tags to verify came from recent workflow
     az acr repository list -n fypcicdregistrymarkl -o table
     az acr repository show-tags -n fypcicdregistrymarkl --repository fyp-app -o table (shows latest commit hash)
