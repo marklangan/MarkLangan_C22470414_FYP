@@ -21,7 +21,7 @@
  - Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
  - .\run.cmd
 
-### **after successful workflow to verify everyhing**
+### **After successful workflow to verify everyhing**
  - az aks get-credentials --resource-group rg-fyp-cicd-fr --name aks-fyp-fr --overwrite-existing # confrim kubectl points to right cluster
  - kubectl get nodes
  - kubectl get deployments
@@ -33,7 +33,7 @@
      - az acr repository show-tags -n fypcicdregistrymarkl --repository fyp-app -o table (shows latest commit hash)
 
 
-### **to delete infrastructure for cost-savings when not in use**
+### **To delete infrastructure for cost-savings when not in use**
  - az group delete -n rg-fyp-cicd-fr --yes --no-wait
  - az group delete -n MC_rg-fyp-cicd-fr_aks-fyp-fr_francecentral --yes --no-wait
 -- and then after 2 - 3 minutes:
