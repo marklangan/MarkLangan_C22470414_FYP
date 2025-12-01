@@ -8,7 +8,7 @@ app.get('/health', (req, res) => {
     time: new Date().toISOString(),
   });
 });
-
+// chnange to status: 'broken' } to demonsrate broekn piepline
 
 if (require.main === module) {
   app.listen(port, () => {
@@ -17,6 +17,10 @@ if (require.main === module) {
 }
 
 module.exports = app;
+
+
+
+
 
 
 
