@@ -25,7 +25,8 @@
  - az aks get-credentials --resource-group rg-fyp-cicd-fr --name aks-fyp-fr --overwrite-existing # confrim kubectl points to right cluster
  - kubectl get nodes
  - kubectl get deployments
- - kubectl get pods
+ - kubectl get pods -o wide
+ - kubectl describe pod {pod-name}
  - kubectl get svc
  - check http://172.189.116.114/health
  - check tags to verify came from recent workflow
