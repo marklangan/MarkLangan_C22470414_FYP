@@ -3,6 +3,12 @@ name: CI/CD to AKS
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - 'app/**'
+      - 'k8s/**'
+      - '.github/workflows/cicd.yml'
+      - 'Dockerfile'
+    workflow_dispatch: {}
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
