@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: fyp-app
-          image: fypcicdregistrymarkl.azurecr.io/fyp-app:latest
+          image: fypcicdregistrymarkl.azurecr.io/fyp-app:PLACEHOLDER_TAG
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
