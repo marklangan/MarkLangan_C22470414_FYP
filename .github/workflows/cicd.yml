@@ -42,7 +42,12 @@ jobs:
       - name: Dependency audit (npm audit) - report only
         working-directory: app
         run: |
-          npm audit --omit=dev || true
+          npm audit --omit=dev
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "npm audit found vulnerabilities (report-only mode, not failing)"
+            exit 0
+          }
+
 
 
       - name: Run tests
