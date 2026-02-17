@@ -56,8 +56,16 @@ jobs:
 
       - name: Install Trivy (report-only)
         run: |
-          choco install trivy -y
+          $ProgressPreference = 'SilentlyContinue'
+
+          Invoke-WebRequest -Uri "https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.56.2_windows-64bit.zip" -OutFile "trivy.zip"
+
+          Expand-Archive trivy.zip -DestinationPath "$env:USERPROFILE\trivy" -Force
+
+          $env:PATH += ";$env:USERPROFILE\trivy"
+
           trivy --version
+
 
 
       - name: Build and push Docker image
@@ -66,16 +74,8 @@ jobs:
           $IMAGE = "$env:ACR_LOGIN_SERVER/fyp-app:$IMAGE_TAG"
           docker build -t "$IMAGE" .
 
-          
-          # Trivy report-only:
-          # - Prints findings
-          # - Does NOT fail the pipeline due to vulnerabilities
           trivy image --severity HIGH,CRITICAL --exit-code 0 "$IMAGE"
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "Trivy scan encountered an error (report-only mode, not failing)."
-            exit 0
-          }
-          
+
           docker push "$IMAGE"
 
       - name: Set AKS context
