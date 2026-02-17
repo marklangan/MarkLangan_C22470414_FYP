@@ -38,6 +38,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+      
+      - name: Dependency audit (npm audit) - report only
+        working-directory: app
+        run: |
+          npm audit --omit=dev || true
+
 
       - name: Run tests
         run: npm test
