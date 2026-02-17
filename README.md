@@ -147,62 +147,119 @@ trivy --version
 ### **Infrastructure Deployment**
 ### **Commands for set up**
 ```powershell
- az login  #authenticate the CLI to Azure  
+az login  #authenticate the CLI to Azure  
+```
 
 cd infra
+```powershell
 terraform init
+```
+```powershell
 terraform plan
+```
+```powershell
 terraform apply
+```
 
 cd ..
-az aks update --resource-group {secrets} --name {secrets} --attach-acr {secrets}  #give AKS cluster permission to pull images
-az aks get-credentials --resource-group {secret} --name {secret} --overwrite-existing  #allow kubectl to talk to cluster
-kubectl get nodes   #verify cluster is alive
-
+give AKS cluster permission to pull images
+```powershell
+az aks update --resource-group {secrets} --name {secrets} --attach-acr {secrets} 
+``` 
+allow kubectl to talk to cluster
+```powershell
+az aks get-credentials --resource-group {secret} --name {secret} --overwrite-existing  
+```
+verify cluster is alive
+```powershell
+kubectl get nodes   
+```
+```powershell
 az acr login --name fypcicdregistrymarkl
-
+```
 cd app 
+```powershell
 docker build -t fypcicdregistrymarkl.azurecr.io/fyp-app:latest .
+```
+```powershell
 docker push fypcicdregistrymarkl.azurecr.io/fyp-app:latest
+```
 
 cd ..
 cd k8s
-kubectl apply -f deployment.yaml #deploy pods
-kubectl apply -f service.yaml   # expose app via a Loadbalancer
+deploy pods
+```powershell
+kubectl apply -f deployment.yaml 
+```
+expose app via a Loadbalancer
+```powershell
+kubectl apply -f service.yaml   
+```
+```powershell
 kubectl get pods
+```
+```powershell
 kubectl get svc
 ```
-#new window
-```powershell
+new window
 cd actions-runner
+```powershell
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+```
+```powershell
 .\run.cmd
 ```
 ### **After successful workflow to verify everyhing**
+confrim kubectl points to right cluster
 ```powershell
-az aks get-credentials --resource-group rg-fyp-cicd-fr --name aks-fyp-fr --overwrite-existing # confrim kubectl points to right cluster
+az aks get-credentials --resource-group rg-fyp-cicd-fr --name aks-fyp-fr --overwrite-existing 
+```
+```powershell
 kubectl get nodes
+```
+```powershell
 kubectl get deployments
+```
+```powershell
 kubectl get pods -o wide
+```
+```powershell
 kubectl describe pod {pod-name}
+```
+```powershell
 kubectl get svc
 ```
 check http://{external-cluster-ip}/health
 check tags to verify came from recent workflow
 ```powershell
 az acr repository list -n fypcicdregistrymarkl -o table
-az acr repository show-tags -n fypcicdregistrymarkl --repository fyp-app -o table (shows latest commit hash)
+```
+```powershell
+az acr repository show-tags -n fypcicdregistrymarkl 
+--repository fyp-app -o table (shows latest commit hash)
 ```
 
 ### **To delete infrastructure for cost-savings when not in use**
 ```powershell
 az group delete -n rg-fyp-cicd-fr --yes --no-wait
+```
+```powershell
 az group delete -n MC_rg-fyp-cicd-fr_aks-fyp-fr_francecentral --yes --no-wait
 -- and then after 2 - 3 minutes:
+```
+```powershell
 az group list -o table
+```
+```powershell
 az aks list -o table
+```
+```powershell
 az acr list -o table
+```
+```powershell
 az vm list -o table
+```
+```powershell
 az resource list -o table
 ```
  verify no output or in status says deleting
