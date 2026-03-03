@@ -1,0 +1,22 @@
+apiVersion: v2
+name: fyp-app
+description: FYP CI/CD application
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

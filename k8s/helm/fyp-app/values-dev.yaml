@@ -1,0 +1,30 @@
+# Dev environment overrides
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: "50m"
+    memory: "64Mi"
+  limits:
+    cpu: "150m"
+    memory: "128Mi"
+
+env:
+  PORT: "8080"
+  APP_VERSION: "dev"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

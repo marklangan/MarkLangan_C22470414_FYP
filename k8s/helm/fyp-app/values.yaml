@@ -1,0 +1,40 @@
+# Default values — overridden by values-dev.yaml / values-prod.yaml
+replicaCount: 1
+
+image:
+  repository: fypcicdregistrymarkl.azurecr.io/fyp-app
+  pullPolicy: Always
+  tag: "latest"   # overridden by pipeline with git SHA
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 8080
+
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "250m"
+    memory: "256Mi"
+
+env:
+  PORT: "8080"
+  APP_VERSION: "local"
+
+probes:
+  liveness:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  readiness:
+    path: /ready
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
