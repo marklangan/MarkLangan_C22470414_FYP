@@ -5,14 +5,23 @@ terraform {
       version = "~> 4.0"
     }
   }
+
+  # Remote state backend (Azure Storage) 
+  
+   backend "azurerm" {
+     resource_group_name  = "rg-fyp-tfstate"
+     storage_account_name = "fyptfstatemarkl"
+     container_name       = "tfstate"
+     key                  = "fyp.terraform.tfstate"
+   }
 }
 
 provider "azurerm" {
   features {}
 
   use_cli         = true
-  subscription_id = "2f30cf7a-f59c-4acc-b5fa-1229dece5528"
-  tenant_id       = "766317cb-e948-4e5f-8cec-dabc8e2fd5da"
+  subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
 }
 
 
