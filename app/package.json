@@ -1,14 +1,14 @@
 {
-  "name": "app",
+  "name": "fyp-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "FYP CI/CD demo app",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "jest --runInBand --forceExit"
+    "test": "jest --runInBand --forceExit --coverage"
   },
   "keywords": [],
-  "author": "",
+  "author": "Mark Langan",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
@@ -17,6 +17,13 @@
   "devDependencies": {
     "jest": "^30.2.0",
     "supertest": "^7.1.4"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageThreshold": {
+      "global": {
+        "lines": 80
+      }
+    }
   }
 }
-
