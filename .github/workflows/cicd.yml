@@ -45,7 +45,7 @@ jobs:
         run: |
           npm audit --omit=dev --json | Out-File -FilePath audit-report.json -Encoding utf8
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "npm audit found vulnerabilities — see audit-report.json artifact"
+            Write-Host "npm audit found vulnerabilities - see audit-report.json artifact"
             exit 0   # report-only; remove 'exit 0' to enforce hard fail
           }
 
