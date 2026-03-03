@@ -1,0 +1,37 @@
+grafana:
+  enabled: true
+  adminPassword: "admin"   
+
+  service:
+    type: ClusterIP   
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: default
+          orgId: 1
+          folder: ""
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+  # Pre-load the Kubernetes cluster overview dashboard (ID 15757)
+  dashboards:
+    default:
+      kubernetes-cluster:
+        gnetId: 15757
+        revision: 37
+        datasource: Prometheus
+
+prometheus:
+  prometheusSpec:
+    # Scrape interval
+    scrapeInterval: "30s"
+    # Retain 7 days of metrics for FYP evaluation window
+    retention: 7d
+
+alertmanager:
+  enabled: false   

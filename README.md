@@ -1,265 +1,197 @@
 # CI/CD Pipeline on Azure
 
-**Author:** Mark Langan
-**Student ID:** C22470414
+**Author:** Mark Langan | **Student ID:** C22470414
 
 ---
 
 ## Overview
 
-This project implements a complete **cloud-native CI/CD pipeline** using:
+A fully automated cloud-native CI/CD pipeline using:
 
-- Terraform (Infrastructure as Code)
-- Azure Kubernetes Service (AKS)
-- Azure Container Registry (ACR)
-- GitHub Actions (Self-hosted runner)
-- Docker (Containerisation)
-- Trivy (Container vulnerability scanning)
-- Kubernetes (Application orchestration)
-
-The pipeline automatically builds, scans, and deploys a containerised web application to Kubernetes using **immutable deployments tagged with Git commit SHA**, ensuring traceability, reproducibility, and secure delivery.
-
----
-
-## Architecture
-
-Developer → GitHub Repository
-│
-▼
-GitHub Actions CI/CD Pipeline
-│
-├── Build Docker Image
-├── Scan Image (Trivy)
-├── Push Image → Azure Container Registry
-└── Deploy → Azure Kubernetes Service
-│
-▼
-Kubernetes Deployment
-│
-▼
-LoadBalancer Service
-│
-▼
-End User
+| Layer | Tool |
+|---|---|
+| Source control | GitHub |
+| Pipeline automation | GitHub Actions (self-hosted runner) |
+| Containerisation | Docker (multi-stage build) |
+| Image registry | Azure Container Registry (ACR) |
+| Infrastructure as Code | Terraform |
+| Orchestration | Azure Kubernetes Service (AKS) |
+| Package management | Helm |
+| Vulnerability scanning | Trivy |
+| Monitoring | Prometheus + Grafana (kube-prometheus-stack) |
 
 ---
 
-## Features
+## Repository Structure
 
-- Infrastructure as Code using Terraform
-- Fully automated CI/CD pipeline
-- Immutable container deployments using commit SHA tags
-- Container vulnerability scanning with Trivy
-- Kubernetes readiness and liveness probes
-- Secure self-hosted GitHub Actions runner
-- Automated deployment verification
-- Industry-standard DevOps workflow
+```
+.
+├── app/                        # Node.js application
+│   ├── index.js
+│   ├── app.test.js
+│   ├── package.json
+│   └── Dockerfile              # Multi-stage build
+├── infra/                      # Terraform IaC
+│   ├── main.tf
+│   ├── providers.tf            # Remote state backend (commented — see setup)
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── terraform.tfvars.example
+│   └── bootstrap/
+│       └── init-backend.ps1   # Run once to create remote state storage
+├── k8s/
+│   └── helm/
+│       └── fyp-app/            # Helm chart (replaces raw YAML)
+│           ├── Chart.yaml
+│           ├── values.yaml         # Base values
+│           ├── values-dev.yaml     # Dev overrides
+│           ├── values-prod.yaml    # Prod overrides (2 replicas, HPA enabled)
+│           └── templates/
+│               ├── deployment.yaml
+│               ├── service.yaml
+│               ├── hpa.yaml
+│               └── _helpers.tpl
+├── monitoring/
+│   └── prometheus-values.yaml  # kube-prometheus-stack Helm values
+└── .github/
+    └── workflows/
+        ├── cicd.yml            # Main pipeline (CI → dev → prod)
+        └── rollback.yml        # Manual rollback workflow
+```
+
+---
+
+## Pipeline Architecture
+
+```
+Developer pushes to main
+        │
+        ▼
+┌─────────────────────────────┐
+│  JOB 1: CI                  │
+│  install → audit → test     │
+│  → build → trivy → push ACR │
+└─────────────┬───────────────┘
+              │ (artifacts: coverage, audit, trivy reports)
+              ▼
+┌─────────────────────────────┐
+│  JOB 2: Deploy → dev        │
+│  helm upgrade --install     │
+│  namespace: dev             │
+│  (automatic)                │
+└─────────────┬───────────────┘
+              │
+              ▼  ← Manual approval gate (GitHub Environment)
+┌─────────────────────────────┐
+│  JOB 3: Deploy → prod       │
+│  helm upgrade --install     │
+│  namespace: prod            │
+│  (2 replicas, HPA enabled)  │
+└─────────────────────────────┘
+```
 
 ---
 
 ## Prerequisites
 
-The following tools must be installed before running this project.
+- Azure CLI: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
+- Terraform: https://developer.hashicorp.com/terraform/downloads
+- Docker Desktop: https://www.docker.com/products/docker-desktop/
+- kubectl: https://kubernetes.io/docs/tasks/tools/
+- Helm: https://helm.sh/docs/intro/install/
+- Trivy: https://github.com/aquasecurity/trivy/releases/latest
+- GitHub Actions self-hosted runner
 
 ---
 
-### 1. Azure CLI
+## Setup Guide
 
-Used to manage Azure infrastructure.
-
-Install:  
-https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
-
-Verify:
+### 1. Provision infrastructure
 
 ```powershell
-az version
-```
-
-### 2. Terraform
-
-Used for Infrastructure as Code provisioning.
-
-Install:
-https://developer.hashicorp.com/terraform/downloads
-
-Verify:
-
-```powershell
-terraform version
-```
-### 3. Docker Desktop
-
-Used to build and test container images.
-
-Install:
-https://www.docker.com/products/docker-desktop/
-
-Verify:
-
-```powershell
-docker version
-```
-
-### 4. kubectl
-
-Used to manage Kubernetes deployments.
-
-Install:
-https://kubernetes.io/docs/tasks/tools/
-
-Verify:
-
-```powershell
-kubectl version --client
-```
-### 5. GitHub Actions Self-Hosted Runner
-
-This project uses a self-hosted runner for secure deployment.
-
-Install guide:
-https://docs.github.com/en/actions/hosting-your-own-runners/adding-self-hosted-runners
-
-Recommended location:
-
-C:\Users\<username>\actions-runner\
-
-
-Start runner:
-```powershell
-cd C:\Users\<username>\actions-runner\
-.\run.cmd
-```
-Runner must be active before triggering CI/CD pipelines.
-
-### 6. Trivy Vulnerability Scanner
-
-Used to scan container images for vulnerabilities.
-
-Download:
-https://github.com/aquasecurity/trivy/releases/latest
-
-Verify:
-```powershell
-trivy --version
-```
-
-### **Infrastructure Deployment**
-### **Commands for set up**
-```powershell
-az login  #authenticate the CLI to Azure  
-```
-
-cd infra
-```powershell
+az login
 terraform init
-```
-```powershell
 terraform plan
-```
-```powershell
 terraform apply
 ```
 
-cd ..
-give AKS cluster permission to pull images
-```powershell
-az aks update --resource-group {secrets} --name {secrets} --attach-acr {secrets} 
-``` 
-allow kubectl to talk to cluster
-```powershell
-az aks get-credentials --resource-group {secret} --name {secret} --overwrite-existing  
-```
-verify cluster is alive
-```powershell
-kubectl get nodes   
-```
-```powershell
-az acr login --name fypcicdregistrymarkl
-```
-cd app 
-```powershell
-docker build -t fypcicdregistrymarkl.azurecr.io/fyp-app:latest .
-```
-```powershell
-docker push fypcicdregistrymarkl.azurecr.io/fyp-app:latest
-```
+### 2. Connect kubectl
 
-cd ..
-cd k8s
-deploy pods
 ```powershell
-kubectl apply -f deployment.yaml 
-```
-expose app via a Loadbalancer
-```powershell
-kubectl apply -f service.yaml   
-```
-```powershell
-kubectl get pods
-```
-```powershell
-kubectl get svc
-```
-new window
-cd actions-runner
-```powershell
-Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-```
-```powershell
-.\run.cmd
-```
-### **After successful workflow to verify everyhing**
-confrim kubectl points to right cluster
-```powershell
-az aks get-credentials --resource-group rg-fyp-cicd-fr --name aks-fyp-fr --overwrite-existing 
-```
-```powershell
+az aks get-credentials --resource-group rg-fyp-cicd-fr --name aks-fyp-fr --overwrite-existing
 kubectl get nodes
 ```
+
+### 3. Start the self-hosted runner
+
 ```powershell
-kubectl get deployments
-```
-```powershell
-kubectl get pods -o wide
-```
-```powershell
-kubectl describe pod {pod-name}
-```
-```powershell
-kubectl get svc
-```
-check http://{external-cluster-ip}/health
-check tags to verify came from recent workflow
-```powershell
-az acr repository list -n fypcicdregistrymarkl -o table
-```
-```powershell
-az acr repository show-tags -n fypcicdregistrymarkl 
---repository fyp-app -o table (shows latest commit hash)
+cd C:\Users\<username>\actions-runner\
+Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
+.\run.cmd
 ```
 
-### **To delete infrastructure for cost-savings when not in use**
+### 4. Deploy monitoring 
+
+```powershell
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm upgrade --install monitoring prometheus-community/kube-prometheus-stack `
+  --namespace monitoring --create-namespace `
+  -f monitoring/prometheus-values.yaml
+
+# Get Grafana external IP
+kubectl get svc -n monitoring monitoring-grafana
+# Open http://<EXTERNAL-IP>  — login: admin / admin
+```
+
+---
+
+## Pipeline Usage
+
+### Normal deployment
+Push any change to `main` — the pipeline triggers automatically.
+
+1. CI job builds, tests, scans, and pushes the image
+2. Deploy-dev deploys automatically to the `dev` namespace
+3. Deploy-prod waits for your manual approval in the GitHub Actions UI
+
+### Manual rollback
+
+Go to Actions → **Rollback Deployment** → Run workflow.  
+Select environment (`dev` or `prod`) and optionally a specific Helm revision number.
+
+### View Helm history
+
+```powershell
+helm history fyp-app --namespace dev
+helm history fyp-app --namespace prod
+```
+
+---
+
+## Verification
+
+```powershell
+kubectl get nodes
+kubectl get deployments -n dev
+kubectl get deployments -n prod
+kubectl get pods -n dev -o wide
+kubectl get pods -n prod -o wide
+kubectl get svc -n dev
+kubectl get svc -n prod
+# Check http://<external-ip>/health
+```
+
+Verify image tags in ACR:
+```powershell
+az acr repository show-tags -n fypcicdregistrymarkl --repository fyp-app -o table
+```
+
+---
+
+## Teardown (cost saving)
+
 ```powershell
 az group delete -n rg-fyp-cicd-fr --yes --no-wait
+# Keep rg-fyp-tfstate if you want to preserve Terraform state
 ```
-```powershell
-az group delete -n MC_rg-fyp-cicd-fr_aks-fyp-fr_francecentral --yes --no-wait
--- and then after 2 - 3 minutes:
-```
-```powershell
-az group list -o table
-```
-```powershell
-az aks list -o table
-```
-```powershell
-az acr list -o table
-```
-```powershell
-az vm list -o table
-```
-```powershell
-az resource list -o table
-```
- verify no output or in status says deleting
