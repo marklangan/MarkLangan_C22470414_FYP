@@ -25,3 +25,16 @@ override.tf.json
 terraform.rc
 
 images_show_success/
+
+# Node
+app/node_modules/
+app/coverage/
+app/audit-report.json
+app/trivy-report.txt
+
+# Terraform
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/terraform.tfstate
+infra/terraform.tfstate.backup
+infra/terraform.tfvars 

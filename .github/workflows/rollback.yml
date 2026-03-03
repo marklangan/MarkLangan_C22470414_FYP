@@ -1,0 +1,65 @@
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to roll back'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      revision:
+        description: 'Helm revision to roll back to (leave blank for previous)'
+        required: false
+        default: ''
+
+env:
+  AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
+  AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+
+jobs:
+  rollback:
+    name: Rollback → ${{ github.event.inputs.environment }}
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Set AKS context
+        run: |
+          az aks get-credentials `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AKS_CLUSTER_NAME `
+            --overwrite-existing
+
+      - name: Show current Helm history
+        run: helm history fyp-app --namespace ${{ github.event.inputs.environment }}
+
+      - name: Perform rollback
+        run: |
+          $REVISION = "${{ github.event.inputs.revision }}"
+          $NS = "${{ github.event.inputs.environment }}"
+          if ($REVISION -eq "") {
+            Write-Host "Rolling back to previous release..."
+            helm rollback fyp-app --namespace $NS --wait
+          } else {
+            Write-Host "Rolling back to revision $REVISION..."
+            helm rollback fyp-app $REVISION --namespace $NS --wait
+          }
+
+      - name: Verify rollback
+        run: |
+          kubectl rollout status deployment/fyp-app `
+            --namespace ${{ github.event.inputs.environment }} `
+            --timeout=120s
+
+      - name: Show pod status after rollback
+        run: kubectl get pods --namespace ${{ github.event.inputs.environment }} -o wide
+
+      - name: Show new Helm history
+        run: helm history fyp-app --namespace ${{ github.event.inputs.environment }}

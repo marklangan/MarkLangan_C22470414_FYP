@@ -7,18 +7,19 @@ on:
       - 'app/**'
       - 'k8s/**'
       - '.github/workflows/cicd.yml'
-      - 'Dockerfile'
-    workflow_dispatch: {}
+      - 'app/Dockerfile'
+  workflow_dispatch:
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
   AKS_CLUSTER_NAME: ${{ secrets.AKS_CLUSTER_NAME }}
   AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
-  ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
-  ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
 
+
+# JOB 1: CI(install -> audit -> test -> build -> scan -> push)
 jobs:
-  build-and-deploy:
+  ci:
+    name: Build & Test
     runs-on: self-hosted
     defaults:
       run:
@@ -29,7 +30,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node
+      - name: Set up Node 18
         uses: actions/setup-node@v4
         with:
           node-version: '18'
@@ -38,50 +39,152 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-      
-      - name: Dependency audit (npm audit) - report only
-        working-directory: app
+
+      # Dependency audit: saves report as artifact instead of silently ignoring
+      - name: Dependency audit
         run: |
-          npm audit --omit=dev
+          npm audit --omit=dev --json | Out-File -FilePath audit-report.json -Encoding utf8
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "npm audit found vulnerabilities (report-only mode, not failing)"
-            exit 0
+            Write-Host "npm audit found vulnerabilities — see audit-report.json artifact"
+            exit 0   # report-only; remove 'exit 0' to enforce hard fail
           }
 
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-audit-report
+          path: app/audit-report.json
+
+      # Run tests with coverage
       - name: Run tests
         run: npm test
 
-      - name: Ensure ACR login (via az)
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-coverage
+          path: app/coverage/
+
+      # Build Docker image (tagged with commit SHA)
+      - name: Ensure ACR login
         run: az acr login --name fypcicdregistrymarkl
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         run: |
           $IMAGE_TAG = "${{ github.sha }}"
           $IMAGE = "$env:ACR_LOGIN_SERVER/fyp-app:$IMAGE_TAG"
           docker build -t "$IMAGE" .
+          # Store tag for later steps
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $env:GITHUB_ENV
+          echo "IMAGE=$IMAGE" >> $env:GITHUB_ENV
 
-          trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 0 "$IMAGE"
+      # Trivy scan: saves report as artifact, exits 0 so pipeline continues
+      # Change --exit-code to 1 to enforce a hard block on CRITICAL vulns
+      - name: Trivy vulnerability scan
+        run: |
+          trivy image `
+            --scanners vuln `
+            --severity HIGH,CRITICAL `
+            --format table `
+            --output trivy-report.txt `
+            --exit-code 0 `
+            "$env:IMAGE"
 
+      - name: Upload Trivy report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy-scan-report
+          path: app/trivy-report.txt
 
-          docker push "$IMAGE"
+      - name: Push image to ACR
+        run: docker push "$env:IMAGE"
+
+# JOB 2: CD to DEV  (deploy to dev namespace automatically on every push)
+
+  deploy-dev:
+    name: Deploy → dev
+    needs: ci
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell
+    environment: dev   # maps to GitHub Environment "dev"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set AKS context
         run: |
-          az aks get-credentials --resource-group $env:AZURE_RESOURCE_GROUP --name $env:AKS_CLUSTER_NAME --overwrite-existing
+          az aks get-credentials `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AKS_CLUSTER_NAME `
+            --overwrite-existing
 
-      - name: Deploy to AKS
+      - name: Create dev namespace (idempotent)
+        run: kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Helm deploy to dev
         run: |
-
           $IMAGE_TAG = "${{ github.sha }}"
-          $IMAGE = "$env:ACR_LOGIN_SERVER/fyp-app:$IMAGE_TAG"
+          helm upgrade --install fyp-app ./k8s/helm/fyp-app `
+            --namespace dev `
+            --values ./k8s/helm/fyp-app/values.yaml `
+            --values ./k8s/helm/fyp-app/values-dev.yaml `
+            --set image.tag="$IMAGE_TAG" `
+            --set env.APP_VERSION="$IMAGE_TAG" `
+            --wait `
+            --timeout 5m
 
-          kubectl apply -f ../k8s/
+      - name: Verify dev rollout
+        run: kubectl rollout status deployment/fyp-app --namespace dev --timeout=120s
 
-          kubectl set image deployment/fyp-app-deployment fyp-app=$IMAGE --record=true
-
-
-          kubectl rollout status deployment/fyp-app-deployment
-
+      - name: Show dev pod status
+        run: kubectl get pods --namespace dev -o wide
 
 
+# JOB 3: CD to PROD  (requires manual approval via GitHub Environment)
 
+  deploy-prod:
+    name: Deploy → prod
+    needs: deploy-dev
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell
+    environment: prod
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set AKS context
+        run: |
+          az aks get-credentials `
+            --resource-group $env:AZURE_RESOURCE_GROUP `
+            --name $env:AKS_CLUSTER_NAME `
+            --overwrite-existing
+
+      - name: Create prod namespace (idempotent)
+        run: kubectl create namespace prod --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Helm deploy to prod
+        run: |
+          $IMAGE_TAG = "${{ github.sha }}"
+          helm upgrade --install fyp-app ./k8s/helm/fyp-app `
+            --namespace prod `
+            --values ./k8s/helm/fyp-app/values.yaml `
+            --values ./k8s/helm/fyp-app/values-prod.yaml `
+            --set image.tag="$IMAGE_TAG" `
+            --set env.APP_VERSION="$IMAGE_TAG" `
+            --wait `
+            --timeout 5m
+
+      - name: Verify prod rollout
+        run: kubectl rollout status deployment/fyp-app --namespace prod --timeout=180s
+
+      - name: Show prod pod status
+        run: kubectl get pods --namespace prod -o wide
