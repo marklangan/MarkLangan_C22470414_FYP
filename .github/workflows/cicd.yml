@@ -7,8 +7,7 @@ on:
       - 'app/**'
       - 'k8s/**'
       - '.github/workflows/cicd.yml'
-      - 'app/Dockerfile'
-  workflow_dispatch:
+  workflow_dispatch:                                                 # allows manually trigger from GitHub UI
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
@@ -16,29 +15,40 @@ env:
   AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
 
 
+# Pipeline is split into three jobs:
+# 1. CI          - builds, tests, scans and pushes the container image
+# 2. deploy-dev  - deploys automatically to the dev namespace on every push
+# 3. deploy-prod - deploys to prod after manual approval (GitHub Environment gate)
+
+
+
+
 # JOB 1: CI(install -> audit -> test -> build -> scan -> push)
 jobs:
   ci:
     name: Build & Test
-    runs-on: self-hosted
+    runs-on: self-hosted                                           # self-hosted running on my machine - Azure AD restrictions prevent service principal auth on GitHub-hosted runners
     defaults:
       run:
         shell: powershell
         working-directory: app
 
+    outputs:
+      image_tag: ${{ steps.build.outputs.image_tag }}             # passed to deploy jobs so they use the exact image that was built and pushed
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4                                   # checks out the repo so we can access code and Dockerfile
 
       - name: Set up Node 18
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v4                                 # sets up Node.js environment for npm install and test
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: app/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci                                                 # installs dependencies listed in package-lock.json
 
       # Dependency audit: saves report as artifact instead of silently ignoring
       - name: Dependency audit
@@ -46,7 +56,7 @@ jobs:
           npm audit --omit=dev --json | Out-File -FilePath audit-report.json -Encoding utf8
           if ($LASTEXITCODE -ne 0) {
             Write-Host "npm audit found vulnerabilities - see audit-report.json artifact"
-            exit 0   # report-only; remove 'exit 0' to enforce hard fail
+            exit 0   # Change 'exit 0' to 'exit 1' to enforce a hard block on vulnerabilities
           }
 
       - name: Upload audit report
@@ -56,7 +66,7 @@ jobs:
           name: npm-audit-report
           path: app/audit-report.json
 
-      # Run tests with coverage
+      # Tests must pass before the image is built - pipeline stops here on failure
       - name: Run tests
         run: npm test
 
@@ -67,21 +77,24 @@ jobs:
           name: test-coverage
           path: app/coverage/
 
-      # Build Docker image (tagged with commit SHA)
       - name: Ensure ACR login
-        run: az acr login --name fypcicdregistrymarkl
+        run: |
+          $ACR_NAME = $env:ACR_LOGIN_SERVER.Split('.')[0]
+          az acr login --name $ACR_NAME
 
+        # Build Docker image (Image is tagged with the git commit SHA for immutable, traceable deployments)
       - name: Build Docker image
+        id: build
         run: |
           $IMAGE_TAG = "${{ github.sha }}"
           $IMAGE = "$env:ACR_LOGIN_SERVER/fyp-app:$IMAGE_TAG"
           docker build -t "$IMAGE" .
-          # Store tag for later steps
+          # Store tag for later steps and expose as job output
           echo "IMAGE_TAG=$IMAGE_TAG" >> $env:GITHUB_ENV
           echo "IMAGE=$IMAGE" >> $env:GITHUB_ENV
+          echo "image_tag=$IMAGE_TAG" >> $env:GITHUB_OUTPUT
 
-      # Trivy scan: saves report as artifact, exits 0 so pipeline continues
-      # Change --exit-code to 1 to enforce a hard block on CRITICAL vulns
+      # Trivy scan: hard-fails on CRITICAL vulnerabilities
       - name: Trivy vulnerability scan
         run: |
           trivy image `
@@ -89,7 +102,7 @@ jobs:
             --severity HIGH,CRITICAL `
             --format table `
             --output trivy-report.txt `
-            --exit-code 0 `
+            --exit-code 1 `
             "$env:IMAGE"
 
       - name: Upload Trivy report
@@ -103,6 +116,9 @@ jobs:
         run: docker push "$env:IMAGE"
 
 # JOB 2: CD to DEV  (deploy to dev namespace automatically on every push)
+# Runs automatically after CI passes - no approval required
+# Deploys to the 'dev' Kubernetes namespace with reduced resource limits
+
 
   deploy-dev:
     name: Deploy → dev
@@ -124,12 +140,14 @@ jobs:
             --name $env:AKS_CLUSTER_NAME `
             --overwrite-existing
 
+        # --dry-run=client makes this idempotent - safe to run on every deployment
       - name: Create dev namespace (idempotent)
         run: kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
 
+        # Helm upgrade --install handles both first-time deploy and rolling updates
       - name: Helm deploy to dev
         run: |
-          $IMAGE_TAG = "${{ github.sha }}"
+          $IMAGE_TAG = "${{ needs.ci.outputs.image_tag }}"
           helm upgrade --install fyp-app ./k8s/helm/fyp-app `
             --namespace dev `
             --values ./k8s/helm/fyp-app/values.yaml `
@@ -146,11 +164,12 @@ jobs:
         run: kubectl get pods --namespace dev -o wide
 
 
-# JOB 3: CD to PROD  (requires manual approval via GitHub Environment)
+  # JOB 3: CD to PROD  (requires manual approval via GitHub Environment)
+  # Deploys to the 'prod' namespace with 2 replicas and HPA enabled (see values-prod.yaml)
 
   deploy-prod:
     name: Deploy → prod
-    needs: deploy-dev
+    needs: [ci, deploy-dev]
     runs-on: self-hosted
     defaults:
       run:
@@ -173,7 +192,7 @@ jobs:
 
       - name: Helm deploy to prod
         run: |
-          $IMAGE_TAG = "${{ github.sha }}"
+          $IMAGE_TAG = "${{ needs.ci.outputs.image_tag }}"
           helm upgrade --install fyp-app ./k8s/helm/fyp-app `
             --namespace prod `
             --values ./k8s/helm/fyp-app/values.yaml `

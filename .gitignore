@@ -38,3 +38,5 @@ infra/.terraform.lock.hcl
 infra/terraform.tfstate
 infra/terraform.tfstate.backup
 infra/terraform.tfvars 
+
+claude.md

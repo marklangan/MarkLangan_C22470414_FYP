@@ -22,6 +22,12 @@ variable "aks_cluster_name" {
   default     = "aks-fyp-fr"
 }
 
+variable "dns_prefix" {
+  description = "DNS prefix for the AKS cluster"
+  type        = string
+  default     = "fypaksdns"
+}
+
 variable "aks_node_count" {
   description = "Number of nodes in the default node pool"
   type        = number
@@ -44,4 +50,13 @@ variable "tenant_id" {
   description = "Azure tenant ID"
   type        = string
   # Set via TF_VAR_tenant_id env var or -var flag — never hardcode here
+}
+
+variable "tags" {
+  description = "Tags to apply to all resources"
+  type        = map(string)
+  default = {
+    project    = "fyp"
+    managed-by = "terraform"
+  }
 }
