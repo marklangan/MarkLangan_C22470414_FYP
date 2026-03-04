@@ -3,7 +3,7 @@
 const request = require('supertest');
 const app = require('./index');
 
-// ── /health ──────────────────────────────────────────────────────────────────
+//  /health
 describe('GET /health', () => {
   let res;
   beforeAll(async () => {
@@ -32,7 +32,7 @@ describe('GET /health', () => {
   });
 });
 
-// ── /ready ───────────────────────────────────────────────────────────────────
+//  /ready
 describe('GET /ready', () => {
   let res;
   beforeAll(async () => {
@@ -48,7 +48,7 @@ describe('GET /ready', () => {
   });
 });
 
-// ── 404 catch-all ─────────────────────────────────────────────────────────────
+// 404 catch-all 
 describe('Unknown routes', () => {
   it('returns HTTP 404 for an unknown path', async () => {
     const res = await request(app).get('/does-not-exist');

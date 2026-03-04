@@ -33,7 +33,7 @@ A fully automated cloud-native CI/CD pipeline using:
 │   └── Dockerfile              # Multi-stage build
 ├── infra/                      # Terraform IaC
 │   ├── main.tf
-│   ├── providers.tf            # Remote state backend (commented — see setup)
+│   ├── providers.tf            
 │   ├── variables.tf
 │   ├── outputs.tf
 │   ├── terraform.tfvars.example
@@ -193,5 +193,4 @@ az acr repository show-tags -n fypcicdregistrymarkl --repository fyp-app -o tabl
 
 ```powershell
 az group delete -n rg-fyp-cicd-fr --yes --no-wait
-# Keep rg-fyp-tfstate if you want to preserve Terraform state
 ```

@@ -43,13 +43,11 @@ variable "aks_vm_size" {
 variable "subscription_id" {
   description = "Azure subscription ID"
   type        = string
-  # Set via TF_VAR_subscription_id env var or -var flag — never hardcode here
 }
 
 variable "tenant_id" {
   description = "Azure tenant ID"
   type        = string
-  # Set via TF_VAR_tenant_id env var or -var flag — never hardcode here
 }
 
 variable "tags" {

@@ -11,7 +11,7 @@ resource "azurerm_container_registry" "fyp" {
   resource_group_name = azurerm_resource_group.fyp.name
   location            = azurerm_resource_group.fyp.location
   sku                 = "Basic"
-  admin_enabled       = false  # AKS uses managed identity (AcrPull) — no admin credentials needed
+  admin_enabled       = false 
   tags                = var.tags
 }
 
