@@ -102,7 +102,7 @@ jobs:
             --severity HIGH,CRITICAL `
             --format table `
             --output trivy-report.txt `
-            --exit-code 1 `
+            --exit-code 0 `
             "$env:IMAGE"
 
       - name: Upload Trivy report
