@@ -2,7 +2,6 @@
 resource "azurerm_resource_group" "fyp" {
   name     = var.resource_group_name
   location = var.location
-  tags     = var.tags
 }
 
 # 2. Azure Container Registry
@@ -11,8 +10,7 @@ resource "azurerm_container_registry" "fyp" {
   resource_group_name = azurerm_resource_group.fyp.name
   location            = azurerm_resource_group.fyp.location
   sku                 = "Basic"
-  admin_enabled       = false 
-  tags                = var.tags
+  admin_enabled       = true
 }
 
 # 3. AKS cluster
@@ -20,7 +18,7 @@ resource "azurerm_kubernetes_cluster" "fyp" {
   name                = var.aks_cluster_name
   location            = azurerm_resource_group.fyp.location
   resource_group_name = azurerm_resource_group.fyp.name
-  dns_prefix          = var.dns_prefix
+  dns_prefix          = "fypaksdns"
 
   default_node_pool {
     name       = "default"
@@ -31,8 +29,6 @@ resource "azurerm_kubernetes_cluster" "fyp" {
   identity {
     type = "SystemAssigned"
   }
-
-  tags = var.tags
 }
 
 # 4. Grant AKS kubelet identity the AcrPull role on ACR

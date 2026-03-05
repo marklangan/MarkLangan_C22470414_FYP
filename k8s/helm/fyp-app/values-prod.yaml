@@ -1,6 +1,14 @@
 # Production environment overrides
 replicaCount: 2
 
+resources:
+  requests:
+    cpu: "100m"
+    memory: "128Mi"
+  limits:
+    cpu: "250m"
+    memory: "256Mi"
+
 autoscaling:
   enabled: true
   minReplicas: 2
@@ -8,4 +16,5 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 
 env:
+  PORT: "8080"
   APP_VERSION: "prod"

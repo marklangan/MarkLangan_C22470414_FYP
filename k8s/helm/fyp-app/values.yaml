@@ -3,8 +3,8 @@ replicaCount: 1
 
 image:
   repository: fypcicdregistrymarkl.azurecr.io/fyp-app
-  pullPolicy: IfNotPresent  # SHA-tagged images are immutable 
-  tag: "changeme"           # always overridden by pipeline with git SHA
+  pullPolicy: Always
+  tag: "latest"   # overridden by pipeline with git SHA
 
 service:
   type: LoadBalancer
