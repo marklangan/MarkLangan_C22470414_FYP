@@ -18,3 +18,4 @@ autoscaling:
 env:
   PORT: "8080"
   APP_VERSION: "prod"
+  
