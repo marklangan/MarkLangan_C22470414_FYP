@@ -63,3 +63,5 @@ jobs:
 
       - name: Show new Helm history
         run: helm history fyp-app --namespace ${{ github.event.inputs.environment }}
+
+        
