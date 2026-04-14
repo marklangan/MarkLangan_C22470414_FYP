@@ -128,6 +128,8 @@ kubectl get nodes
 cd C:\Users\<username>\actions-runner\
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 .\run.cmd
+
+open docker app
 ```
 
 ### 4. Deploy monitoring 
@@ -139,9 +141,11 @@ helm upgrade --install monitoring prometheus-community/kube-prometheus-stack `
   --namespace monitoring --create-namespace `
   -f monitoring/prometheus-values.yaml
 
-# Get Grafana external IP
 kubectl get svc -n monitoring monitoring-grafana
-# Open http://<EXTERNAL-IP>  — login: admin / admin
+
+# Access Grafana via port-forward, in new tab
+kubectl port-forward svc/monitoring-grafana 3000:80 -n monitoring
+# Open http://localhost:3000  login: admin / admin
 ```
 
 ---
