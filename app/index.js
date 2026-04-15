@@ -10,7 +10,7 @@ app.use(express.json());
 // Health endpoint - used by Kubernetes liveness and readiness probes
 app.get('/health', (req, res) => {
   res.status(200).json({
-    status: 'broken',
+    status: 'ok',
     time: new Date().toISOString(),
     version: APP_VERSION,
   });
