@@ -1,4 +1,4 @@
-# Default values — overridden by values-dev.yaml / values-prod.yaml
+# Default values: overridden by values-dev.yaml / values-prod.yaml
 replicaCount: 1
 
 image:
