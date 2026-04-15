@@ -3,8 +3,6 @@ FROM node:18-alpine3.21 AS builder
 
 WORKDIR /usr/src/app
 
-RUN exit 1
-
 COPY package*.json ./
 RUN npm ci
 
